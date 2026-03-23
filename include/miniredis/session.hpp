@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/asio.hpp>
+#include <memory>
 #include <string>
 #include <deque>
 #include <mutex>
@@ -23,6 +24,8 @@ private:
   void handleCommand(const size_t&);
   void handleError(const boost::system::error_code&);
   void writeNext();
+  bool tryPrepareNextMessage(std::shared_ptr<std::string>& nextMessage);
+  void handleWriteComplete(const boost::system::error_code& ec);
 
   tcp::socket socket_;
   boost::asio::streambuf buffer_;

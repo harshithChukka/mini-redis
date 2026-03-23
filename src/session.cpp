@@ -33,7 +33,6 @@ void Session::handleCommand(const size_t& /*len*/) {
     line.pop_back();
 
   Command cmd = parser_.parse(line);
-
   std::string result = executor_.execute(cmd);
   doWrite(result);
 }
@@ -51,32 +50,40 @@ void Session::doWrite(const std::string& msg) {
   if (shouldStart) writeNext();
 }
 
-void Session::writeNext() {
-  std::shared_ptr<std::string> nextMessage;
+bool Session::tryPrepareNextMessage(std::shared_ptr<std::string>& nextMessage) {
+  std::lock_guard lock(writeMutex_);
+  const bool cannotWrite = !socket_.is_open() || writeQueue_.empty();
+  if (cannotWrite) {
+    isWriteInProgress = false;
+    return false;
+  }
+
+  nextMessage = std::make_shared<std::string>(writeQueue_.front());
+  return true;
+}
+
+void Session::handleWriteComplete(const boost::system::error_code& ec) {
+  if (ec) {
+    handleError(ec);
+    return;
+  }
   {
     std::lock_guard lock(writeMutex_);
-    const bool cannotWrite = !socket_.is_open() || writeQueue_.empty();
-    if (cannotWrite) {
-      isWriteInProgress = false;
-      return;
-    }
-    nextMessage = std::make_shared<std::string>(writeQueue_.front());
+    writeQueue_.pop_front();
   }
+  writeNext();
+}
+
+void Session::writeNext() {
+  std::shared_ptr<std::string> nextMessage;
+  if (!tryPrepareNextMessage(nextMessage)) return;
 
   auto self = shared_from_this();
   boost::asio::async_write(
     socket_,
     boost::asio::buffer(*nextMessage),
     [self, nextMessage] (const boost::system::error_code& ec, size_t /*bytes*/) {
-      if (!ec) {
-        {
-          std::lock_guard lock(self->writeMutex_);
-          self->writeQueue_.pop_front();
-        }
-        self->writeNext();
-      } else {
-        self->handleError(ec);
-      }
+      self->handleWriteComplete(ec);
     }
   );
 }
