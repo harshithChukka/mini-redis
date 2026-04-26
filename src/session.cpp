@@ -24,17 +24,13 @@ void Session::doRead() {
 }
 
 void Session::handleCommand(const size_t& /*len*/) {
-  std::istream stream(&buffer_);
-  std:: string line;
-
-  std::getline(stream, line);
-
-  if (!line.empty() && line.back() == '\r')
-    line.pop_back();
-
-  Command cmd = parser_.parse(line);
-  std::string result = executor_.execute(cmd);
-  doWrite(result);
+  while (true) {
+    auto cmd = parser_.parse(buffer_);
+    if (!cmd)
+      break;
+    auto result = executor_.execute(cmd.value());
+    doWrite(result);
+  }
 }
 
 void Session::doWrite(const std::string& msg) {
