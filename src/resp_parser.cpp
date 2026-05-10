@@ -71,10 +71,8 @@ std::optional<Command> RespParser::parseRESPArray(
 
     if (i == 0) {
       cmd.name = arg;
-      std::cout << "cmd name " << arg << "\n";
       toLower(cmd.name);
     } else {
-      std::cout << "cmd args " << arg << "\n";
       cmd.args.push_back(arg);
     }
   }
