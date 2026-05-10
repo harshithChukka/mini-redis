@@ -10,15 +10,18 @@ void Session::start() {
 
 void Session::doRead() {
   auto self = shared_from_this();
-  boost::asio::async_read_until(
-    socket_,
-    buffer_,
-    "\r\n",
-    [self] (const boost::system::error_code& ec,const size_t& len) {
+  socket_.async_read_some(
+    buffer_.prepare(4096),
+    [self] (const boost::system::error_code& ec, const size_t bytesRead) {
+      if (bytesRead > 0) {
+        self->buffer_.commit(bytesRead);
+        self->handleCommand(bytesRead);
+      }
       if (!ec) {
-        self->handleCommand(len);
         self->doRead();
-      } else self->handleError(ec);
+      } else if (ec != boost::asio::error::eof) {
+        self->handleError(ec);
+      }
     }
   );
 }
