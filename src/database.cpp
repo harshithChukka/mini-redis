@@ -18,13 +18,13 @@ std::optional<int64_t> convertToInt(const std::string& s) {
 }
 
 void Database::set(const std::string& key, const std::string& value) {
-  std::lock_guard<std::shared_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   store_[key] = value;
   expiry_.erase(key);
 }
 
 std::shared_ptr<std::string> Database::get(const std::string& key) {
-  std::lock_guard<std::shared_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto it = store_.find(key);
   auto itExp = expiry_.find(key);
 
@@ -42,7 +42,7 @@ std::shared_ptr<std::string> Database::get(const std::string& key) {
 }
 
 int Database::del(const std::string& key) {
-  std::lock_guard<std::shared_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto it = store_.find(key);
   if (it == store_.end())
     return 0;
@@ -52,7 +52,7 @@ int Database::del(const std::string& key) {
 }
 
 std::optional<int64_t> Database::incr(const std::string& key) {
-  std::lock_guard<std::shared_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto it = store_.find(key);
   if (it == store_.end()) {
     store_[key] = std::to_string(1);
@@ -69,7 +69,7 @@ std::optional<int64_t> Database::incr(const std::string& key) {
 }
 
 int Database::expire(const std::string& key, const std::string& sec) {
-  std::lock_guard<std::shared_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto it = store_.find(key);
   auto value = convertToInt(sec);
   if (it == store_.end() || !value || *value < 0)
@@ -80,7 +80,7 @@ int Database::expire(const std::string& key, const std::string& sec) {
 }
 
 std::optional<int64_t> Database::incr(const std::string& key) {
-  std::lock_guard<std::shared_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto it = store_.find(key);
   if (it == store_.end()) {
     store_[key] = std::to_string(1);
