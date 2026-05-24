@@ -75,6 +75,11 @@ std::string CommandExecutor::execute(const Command& cmd) {
     return integer<int64_t>(*val);
   }
 
+  if (commandName == "expire") {
+    if (cmd.args.size() != 2) wrongArgCnt(commandName, 2, cmd.args.size());
+    return integer<int>(db_.expire(cmd.args[0], cmd.args[1]));
+  }
+
   std::cerr << "[command_executor] Unknown command received: " << cmd.name << "\n";
   return error(std::string(UNKNOWN_COMMAND));
 }
