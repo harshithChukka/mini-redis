@@ -26,7 +26,8 @@ std::string nullBulk() {
     return "$-1\r\n";
 }
 
-std::string integer(int val) {
+template <typename T>
+std::string integer(T val) {
     return ":" + std::to_string(val) + "\r\n";
 }
 
@@ -56,7 +57,27 @@ std::string CommandExecutor::execute(const Command& cmd) {
   if (commandName == "del") {
     if (cmd.args.size() != 1) return wrongArgCnt(commandName, 1, cmd.args.size());
     int removed = db_.del(cmd.args[0]);
-    return integer(removed);
+    return integer<int>(removed);
+  }
+
+  if (commandName == "ping") {
+    int argc = cmd.args.size();
+    if (argc == 1) return bulkString(cmd.args[0]);
+    else if (argc == 0) return simpleString("PONG");
+    return wrongArgCnt(commandName, 1, argc);
+  }
+
+  if (commandName == "incr") {
+    if (cmd.args.size() != 1) return wrongArgCnt(commandName, 1, cmd.args.size());
+    auto val = db_.incr(cmd.args[0]);
+    if (!val)
+      return error("value is not an integer");
+    return integer<int64_t>(*val);
+  }
+
+  if (commandName == "expire") {
+    if (cmd.args.size() != 2) wrongArgCnt(commandName, 2, cmd.args.size());
+    return integer<int>(db_.expire(cmd.args[0], cmd.args[1]));
   }
 
   std::cerr << "[command_executor] Unknown command received: " << cmd.name << "\n";
