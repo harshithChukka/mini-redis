@@ -8,12 +8,14 @@
 
 #include "miniredis/resp_parser.hpp"
 #include "miniredis/command_executor.hpp"
+#include "miniredis/presistence_manager.hpp"
 
 using boost::asio::ip::tcp;
 
 class Session : public std::enable_shared_from_this<Session> {
 public:
-  Session(boost::asio::io_context& io) : socket_(io) {};
+  Session(boost::asio::io_context& io, CommandExecutor& executor)
+    : socket_(io), executor_(executor) {};
   auto& socket() { return socket_; }
 
   void start();
@@ -30,7 +32,7 @@ private:
   tcp::socket socket_;
   boost::asio::streambuf buffer_;
   RespParser parser_;
-  CommandExecutor executor_;
+  CommandExecutor& executor_;
   bool isWriteInProgress = false;
   std::deque<std::string> writeQueue_;
   std::mutex writeMutex_;  

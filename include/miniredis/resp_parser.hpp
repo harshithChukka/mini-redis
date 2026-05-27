@@ -17,6 +17,7 @@ class RespParser {
 public:
   std::optional<Command> parse(boost::asio::streambuf&);
   Command parseInline(const std::string&);
+  std::string serializeRESP(const Command& cmd);
 private:
   std::optional<Command> parseRESPArray(StreamBufIter& begin, StreamBufIter end, boost::asio::streambuf& buffer);
   std::optional<Command> parseInlineFromBuffer(StreamBufIter& begin, StreamBufIter end, boost::asio::streambuf& buffer);

@@ -16,6 +16,7 @@ add_executable(mini_redis
   src/resp_parser.cpp
   src/command_executor.cpp
   src/database.cpp
+  src/presistence_manager.cpp
 )
 
 target_include_directories(mini_redis

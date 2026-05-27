@@ -78,20 +78,3 @@ int Database::expire(const std::string& key, const std::string& sec) {
   expiry_[key] = std::chrono::steady_clock::now() + std::chrono::seconds(*value);
   return 1;
 }
-
-std::optional<int64_t> Database::incr(const std::string& key) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto it = store_.find(key);
-  if (it == store_.end()) {
-    store_[key] = std::to_string(1);
-    return 1;
-  }
-
-  auto value = convertToInt(it->second);
-  if (!value)
-    return std::nullopt;
-
-  ++(*value);
-  it->second = std::to_string(*value);
-  return *value;
-}

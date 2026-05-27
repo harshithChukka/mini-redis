@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+#include <sstream>
 #include <string_view>
 
 #include "miniredis/command_executor.hpp"
@@ -14,69 +15,72 @@ std::string wrongArgCnt(std::string_view commandName, std::size_t expected, std:
     + ", got " + std::to_string(got) + ")";
 }
 
-std::string simpleString(const std::string& s) {
-    return "+" + s + "\r\n";
-}
-
-std::string bulkString(const std::string& s) {
-    return "$" + std::to_string(s.size()) + "\r\n" + s + "\r\n";
-}
-
-std::string nullBulk() {
-    return "$-1\r\n";
-}
+std::string simpleString(const std::string& s) { return "+" + s + "\r\n"; }
+std::string bulkString(const std::string& s) { return "$" + std::to_string(s.size()) + "\r\n" + s + "\r\n"; }
+std::string nullBulk()                        { return "$-1\r\n"; }
+std::string error(const std::string& msg)     { return "-ERR " + msg + "\r\n"; }
 
 template <typename T>
-std::string integer(T val) {
-    return ":" + std::to_string(val) + "\r\n";
+std::string integer(T val) { return ":" + std::to_string(val) + "\r\n"; }
+
+std::string toRESP(const Command& cmd) {
+  std::ostringstream oss;
+  oss << "*" << (cmd.args.size() + 1) << "\r\n";
+  oss << "$" << cmd.name.size() << "\r\n" << cmd.name << "\r\n";
+  for (const auto& arg : cmd.args)
+    oss << "$" << arg.size() << "\r\n" << arg << "\r\n";
+  return oss.str();
 }
 
-std::string error(const std::string& msg) {
-    return "-ERR " + msg + "\r\n";
-}
 }
 
-std::string CommandExecutor::execute(const Command& cmd) {
-  std::string commandName = cmd.name;
-  std::cout << "[command_executor] Executing command: " << cmd.name << "\n";
+std::string CommandExecutor::execute(const Command& cmd, bool skipPersist) {
+  const std::string& commandName = cmd.name;
 
   if (commandName == "set") {
-    if (cmd.args.size() != 2) return wrongArgCnt(commandName, 2, cmd.args.size());
+    if (cmd.args.size() != 2)
+      return error(wrongArgCnt(commandName, 2, cmd.args.size()));
     db_.set(cmd.args[0], cmd.args[1]);
+    if (!skipPersist) pm_.append(toRESP(cmd));
     return simpleString("OK");
   }
 
   if (commandName == "get") {
-    if (cmd.args.size() != 1) return wrongArgCnt(commandName, 1, cmd.args.size());
+    if (cmd.args.size() != 1)
+      return error(wrongArgCnt(commandName, 1, cmd.args.size()));
     auto val = db_.get(cmd.args[0]);
-    if (!val)
-      return nullBulk();
+    if (!val) return nullBulk();
     return bulkString(*val);
   }
 
   if (commandName == "del") {
-    if (cmd.args.size() != 1) return wrongArgCnt(commandName, 1, cmd.args.size());
+    if (cmd.args.size() != 1)
+      return error(wrongArgCnt(commandName, 1, cmd.args.size()));
     int removed = db_.del(cmd.args[0]);
+    if (!skipPersist) pm_.append(toRESP(cmd));
     return integer<int>(removed);
   }
 
   if (commandName == "ping") {
     int argc = cmd.args.size();
     if (argc == 1) return bulkString(cmd.args[0]);
-    else if (argc == 0) return simpleString("PONG");
-    return wrongArgCnt(commandName, 1, argc);
+    if (argc == 0) return simpleString("PONG");
+    return error(wrongArgCnt(commandName, 1, argc));
   }
 
   if (commandName == "incr") {
-    if (cmd.args.size() != 1) return wrongArgCnt(commandName, 1, cmd.args.size());
+    if (cmd.args.size() != 1)
+      return error(wrongArgCnt(commandName, 1, cmd.args.size()));
     auto val = db_.incr(cmd.args[0]);
-    if (!val)
-      return error("value is not an integer");
+    if (!val) return error("value is not an integer");
+    if (!skipPersist) pm_.append(toRESP(cmd));
     return integer<int64_t>(*val);
   }
 
   if (commandName == "expire") {
-    if (cmd.args.size() != 2) wrongArgCnt(commandName, 2, cmd.args.size());
+    if (cmd.args.size() != 2)
+      return error(wrongArgCnt(commandName, 2, cmd.args.size()));
+    if (!skipPersist) pm_.append(toRESP(cmd));
     return integer<int>(db_.expire(cmd.args[0], cmd.args[1]));
   }
 

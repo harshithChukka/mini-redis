@@ -25,6 +25,19 @@ inline std::vector<std::string> splitByDelim(const std::string& s, char delim) {
 
 }
 
+std::string RespParser::serializeRESP(const Command& cmd) {
+  std::ostringstream oss;
+  oss << "*" << (cmd.args.size() + 1) << "\r\n";
+  oss << "$" << cmd.name.size() << "\r\n";
+  oss << cmd.name << "\r\n";
+
+  for (const auto& arg : cmd.args) {
+    oss << "$" << arg.size() << "\r\n";
+    oss << arg << "\r\n";
+  }
+  return oss.str();
+}
+
 std::optional<Command> RespParser::parse(boost::asio::streambuf& buffer) {
   auto data  = buffer.data();
   auto begin = boost::asio::buffers_begin(data);
