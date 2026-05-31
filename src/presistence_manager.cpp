@@ -17,7 +17,7 @@ void PersistenceManager::load(CommandExecutor& executor) {
   while (true) {
     auto cmd = parser_.parse(buf);
     if (!cmd) break;
-    executor.execute(cmd.value(), true);  // skipPersist=true during replay
+    executor.execute(cmd.value(), true);
     ++replayed;
   }
   std::cout << "[persistence_manager] Replayed " << replayed << " commands from AOF.\n";

@@ -58,10 +58,9 @@ std::optional<Command> RespParser::parseRESPArray(
     boost::asio::streambuf& buffer) {
   auto cursor = begin;
 
-  // Parse array length: *<argc>\r\n
   auto it = std::search(begin, end, CRLF.begin(), CRLF.end());
   if (it == end)
-    return std::nullopt; // incomplete
+    return std::nullopt;
 
   int argc = 0;
   try {
@@ -75,12 +74,11 @@ std::optional<Command> RespParser::parseRESPArray(
 
   std::advance(begin, std::distance(begin, it) + CRLF.length());
 
-  // Parse argc bulk strings
   Command cmd;
   for (int i = 0; i < argc; ++i) {
     std::string arg;
     if (!parseBulkString(begin, end, arg))
-      return std::nullopt; // incomplete or malformed
+      return std::nullopt;
 
     if (i == 0) {
       cmd.name = arg;
@@ -98,13 +96,13 @@ bool RespParser::parseBulkString(
     StreamBufIter& begin,
     StreamBufIter  end,
     std::string&   out) {
-  // Expect: $<len>\r\n<data>\r\n
+
   if (begin == end || *begin != '$')
     return false;
 
   auto it = std::search(begin, end, CRLF.begin(), CRLF.end());
   if (it == end || std::distance(begin, it) < 2)
-    return false; // incomplete length line
+    return false;
 
   int len = 0;
   try {
@@ -115,10 +113,8 @@ bool RespParser::parseBulkString(
   if (len < 0)
     return false;
 
-  // Advance past $<len>\r\n
   std::advance(begin, std::distance(begin, it) + CRLF.length());
 
-  // Check enough bytes remain for data + trailing \r\n
   if (std::distance(begin, end) < len + 2)
     return false;
 
@@ -126,7 +122,6 @@ bool RespParser::parseBulkString(
   std::advance(dataEnd, len);
   out.assign(begin, dataEnd);
 
-  // Validate trailing \r\n
   auto cr = dataEnd;
   auto lf = std::next(cr);
   if (cr == end || lf == end || *cr != '\r' || *lf != '\n')
@@ -140,7 +135,6 @@ std::optional<Command> RespParser::parseInlineFromBuffer(
     StreamBufIter& begin,
     StreamBufIter  end,
     boost::asio::streambuf& buffer) {
-  // Accept both \r\n and bare \n delimiters
   auto it = std::search(begin, end, CRLF.begin(), CRLF.end());
   size_t delimLen = CRLF.length();
   if (it == end) {
@@ -148,7 +142,7 @@ std::optional<Command> RespParser::parseInlineFromBuffer(
     delimLen = 1;
   }
   if (it == end)
-    return std::nullopt; // incomplete
+    return std::nullopt;
 
   std::string line(begin, it);
   if (!line.empty() && line.back() == '\r')
